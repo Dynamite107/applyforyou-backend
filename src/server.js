@@ -1,10 +1,12 @@
 // =============================================================
-// File: server.js
+// File: server/server.js
+// (Ismein badlav kiya gaya hai)
 // =============================================================
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { initializeApp, credential } from 'firebase-admin';
+// **FIX:** Firebase import ka tarika badla gaya
+import admin from 'firebase-admin';
 
 // Apne banaye gaye routes ko import karein
 import authRoutes from './routes/authRoutes.js';
@@ -16,8 +18,9 @@ dotenv.config();
 // Firebase Admin SDK ko initialize (shuru) karein
 try {
   const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-  initializeApp({
-    credential: credential.cert(serviceAccount)
+  // **FIX:** credential() ko admin.credential.cert() se access karein
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
   });
   console.log("Firebase Admin SDK safaltapoorvak initialize ho gaya.");
 } catch (error) {
