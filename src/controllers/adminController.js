@@ -1,0 +1,43 @@
+// =============================================================
+// **NEW FILE**
+// File: src/controllers/adminController.js
+// Yeh file admin dashboard ke liye applications data ko handle karti hai.
+// Isse 'src/controllers' folder mein save karein.
+// =============================================================
+import { db } from '../config/firebase.js';
+
+export const getAdminApplications = async (req, res) => {
+    try {
+        // Firebase Auth se user ki ID lein aur check karein ki woh admin hai ya nahi
+        // Is step ke liye aapko pehle admin ke liye role-based access control setup karna hoga.
+        // Ya to aap Firestore mein admin user ki ek list rakhen, ya uske token mein custom claims daalein.
+        // Is demo ke liye, hum maan rahe hain ki middleware isko check kar raha hai.
+
+        // Firestore se saari applications ko fetch karein
+        const applicationsRef = db.collection('applications').orderBy('appliedAt', 'desc'); // Sabse naye applications pehle dikhenge
+        const snapshot = await applicationsRef.get();
+
+        if (snapshot.empty) {
+            return res.status(200).json([]);
+        }
+
+        const applications = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                applicationId: doc.id,
+                customerName: data.customerName,
+                whatsappNo: data.customerMobile || 'N/A', // Assuming whatsapp number is stored here
+                service: data.serviceTitle,
+                paymentId: data.paymentId,
+                status: data.status,
+                date: data.appliedAt.toDate().toLocaleString('en-IN')
+            };
+        });
+
+        res.status(200).json(applications);
+
+    } catch (error) {
+        console.error('Error fetching admin applications:', error);
+        res.status(500).json({ message: 'Applications fetch karne mein error aaya.' });
+    }
+};
