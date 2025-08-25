@@ -1,10 +1,27 @@
 // =============================================================
-// **NEW FILE**
 // File: src/controllers/adminController.js
 // Yeh file admin dashboard ke liye applications data ko handle karti hai.
 // Isse 'src/controllers' folder mein save karein.
 // =============================================================
 import { db } from '../config/firebase.js';
+
+// NEW: Admin login ko handle karne ke liye naya controller function
+export const adminLogin = async (req, res) => {
+    const { email, password } = req.body;
+    
+    // .env file se admin credentials lein
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        // Successful login
+        // Asal mein, yahan aapko ek JWT token generate karke frontend ko bhejna chahiye
+        // Par abhi ke liye, hum sirf ek success message bhej rahe hain.
+        res.status(200).json({ message: 'Admin login safal.' });
+    } else {
+        res.status(401).json({ message: 'Invalid credentials.' });
+    }
+};
 
 export const getAdminApplications = async (req, res) => {
     try {
