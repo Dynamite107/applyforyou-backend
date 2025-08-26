@@ -1,95 +1,83 @@
 // =============================================================
 // File: helpers/googleDriveHelper.js
-// Google Drive mein files upload karne ke liye functions.
+// Google Sheet mein data save karne ke liye function.
 // =============================================================
-import { google } from 'googleapis';
-import { Readable } from 'stream';
+import { GoogleSpreadsheet } from 'google-spreadsheet';
+import { JWT } from 'google-auth-library';
 
-let drive;
-const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
+// Google Sheet ID ko .env file se load karein
+const SHEET_ID = process.env.GOOGLE_SHEET_ID;
+let doc;
+let isInitialized = false;
 
-// Google Drive API ko initialize karein
+// Google Sheet API ko initialize karein
 try {
-    // .env file se credentials ko parse karein (Yeh surakshit tarika hai)
+    if (!process.env.GOOGLE_API_CREDENTIALS || !SHEET_ID) {
+        throw new Error("Google credentials ya Sheet ID .env file mein nahi hai.");
+    }
+    
+    // .env file se credentials ko parse karein
     const credentials = JSON.parse(process.env.GOOGLE_API_CREDENTIALS);
     
     // Google Auth object banayein
-    const auth = new google.auth.GoogleAuth({
-        credentials,
-        scopes: ['https://www.googleapis.com/auth/drive'],
+    const serviceAccountAuth = new JWT({
+        email: credentials.client_email,
+        key: credentials.private_key,
+        scopes: [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive.file',
+        ],
     });
 
-    // Authenticated drive object banayein
-    drive = google.drive({ version: 'v3', auth });
+    // Spreadsheet object ko initialize karein
+    doc = new GoogleSpreadsheet(SHEET_ID, serviceAccountAuth);
+    isInitialized = true;
+
 } catch (error) {
-    console.error("Google API credentials load karne mein error:", error.message);
-    drive = null;
+    console.error("Google Sheet Helper ko initialize karne mein error:", error.message);
+    isInitialized = false;
 }
 
+/**
+ * Nayi application/payment ki details Google Sheet mein save karein
+ * @param {object} appData - Application ka poora data
+ */
+export const saveApplicationDataToDrive = async (appData) => {
+    if (!isInitialized) {
+        console.error("Google Sheet service initialize nahi hui. Data save nahi ho sakta.");
+        return;
+    }
 
-// Google Drive mein file upload karne ke liye function
-const uploadToDrive = async (fileName, fileContent) => {
-  // Check karein ki Drive aur Folder ID set hai ya nahi
-  if (!drive || !FOLDER_ID) {
-    console.error("Google Drive is not configured. .env file mein credentials aur folder ID check karein.");
-    return;
-  }
+    try {
+        // Spreadsheet ki info load karein
+        await doc.loadInfo(); 
+        
+        // Pehli sheet ko select karein (ya naam se bhi kar sakte hain)
+        const sheet = doc.sheetsByIndex[0]; 
 
-  const fileMetadata = {
-    name: fileName,
-    parents: [FOLDER_ID], // File ko kis folder mein save karna hai
-  };
+        // Nayi row add karein. Column headers aur appData ke keys match hone chahiye.
+        await sheet.addRow({
+            "Customer Name": appData.customerName,
+            "WhatsApp No": appData.customerMobile,
+            "Email": appData.customerEmail,
+            "Service": appData.serviceTitle,
+            "Payment Amount": appData.amountPaid,
+            "Status": appData.status,
+            "Payment ID": appData.paymentId,
+            "Token ID": appData.tokenId,
+            "Time Slot": appData.timeSlot,
+            "Applied Date": new Date(appData.appliedAt).toLocaleString('en-IN'),
+            "Delivery Date": appData.deliveryDate
+        });
 
-  const media = {
-    mimeType: 'text/plain',
-    body: Readable.from(fileContent), // File ka content
-  };
+        console.log(`Data safaltapoorvak Google Sheet mein save ho gaya.`);
 
-  try {
-    // File create karne ki request bhejein
-    await drive.files.create({
-      resource: fileMetadata,
-      media: media,
-      fields: 'id',
-    });
-    console.log(`File '${fileName}' Google Drive mein upload ho gayi.`);
-  } catch (error) {
-    console.error('Google Drive mein file upload karne mein error:', error.message);
-  }
+    } catch (error) {
+        console.error('Google Sheet mein data save karne mein error:', error.message);
+    }
 };
 
-// Naye user ki details save karein
+// Purana function (ab istemal nahi hoga, lekin rakha hai)
 export const saveUserDataToDrive = (userData) => {
-  const fileName = `NewUser_${userData.email}_${new Date().toISOString()}.txt`;
-  const fileContent = `
-    New User Registration
-    ---------------------
-    Date: ${new Date().toLocaleString('en-IN')}
-    Name: ${userData.name}
-    Email: ${userData.email}
-    Mobile: ${userData.mobile}
-    Firebase UID: ${userData.uid}
-  `;
-  uploadToDrive(fileName, fileContent);
-};
-
-// Nayi application/payment ki details save karein
-export const saveApplicationDataToDrive = (appData) => {
-  const fileName = `NewApplication_${appData.customerName}_${new Date().toISOString()}.txt`;
-  const fileContent = `
-    New Service Application
-    -----------------------
-    Date: ${new Date().toLocaleString('en-IN')}
-    Customer Name: ${appData.customerName}
-    Customer Email: ${appData.customerEmail}
-    Customer Mobile: ${appData.customerMobile}
-    Service Title: ${appData.serviceTitle}
-    Amount Paid: ${appData.amountPaid}
-    Payment ID: ${appData.paymentId}
-    Order ID: ${appData.orderId}
-    User ID: ${appData.userId}
-    Token ID: ${appData.tokenId}
-    Time Slot: ${appData.timeSlot}
-  `;
-  uploadToDrive(fileName, fileContent);
+  console.log("saveUserDataToDrive function ab istemal nahi ho raha hai.");
 };
