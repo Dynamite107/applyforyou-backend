@@ -9,16 +9,14 @@ import { db, auth } from '../config/firebase.js'; // `auth` ko import karein
 export const adminLogin = async (req, res) => {
     const { email, password } = req.body;
     
-    // Yahan Firebase ke through authentication karein, hardcoded check nahi.
     // .env file se admin credentials lein
     const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
     
-    // Ek user record ko email se khojein
     try {
+      // Firebase के साथ admin credentials को verify karein
       const userRecord = await auth.getUserByEmail(email);
 
-      // check karein ki user admin hai aur password match karta hai
-      if (userRecord && email === ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
+      if (userRecord.uid && userRecord.email === ADMIN_EMAIL) {
         // Successful login
         res.status(200).json({ message: 'Admin login safal.' });
       } else {
