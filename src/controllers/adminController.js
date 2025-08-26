@@ -15,8 +15,6 @@ export const adminLogin = async (req, res) => {
 
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
         // Successful login
-        // Asal mein, yahan aapko ek JWT token generate karke frontend ko bhejna chahiye
-        // Par abhi ke liye, hum sirf ek success message bhej rahe hain.
         res.status(200).json({ message: 'Admin login safal.' });
     } else {
         res.status(401).json({ message: 'Invalid credentials.' });
@@ -25,11 +23,6 @@ export const adminLogin = async (req, res) => {
 
 export const getAdminApplications = async (req, res) => {
     try {
-        // Firebase Auth se user ki ID lein aur check karein ki woh admin hai ya nahi
-        // Is step ke liye aapko pehle admin ke liye role-based access control setup karna hoga.
-        // Ya to aap Firestore mein admin user ki ek list rakhen, ya uske token mein custom claims daalein.
-        // Is demo ke liye, hum maan rahe hain ki middleware isko check kar raha hai.
-
         // Firestore se saari applications ko fetch karein
         const applicationsRef = db.collection('applications').orderBy('appliedAt', 'desc'); // Sabse naye applications pehle dikhenge
         const snapshot = await applicationsRef.get();
@@ -43,7 +36,7 @@ export const getAdminApplications = async (req, res) => {
             return {
                 applicationId: doc.id,
                 customerName: data.customerName,
-                whatsappNo: data.customerMobile || 'N/A', // Assuming whatsapp number is stored here
+                whatsappNo: data.customerDetails.mobile || 'N/A', // CORRECTED: `customerDetails.mobile` se data lein
                 service: data.serviceTitle,
                 paymentId: data.paymentId,
                 status: data.status,
