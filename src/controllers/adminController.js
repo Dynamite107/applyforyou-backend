@@ -3,21 +3,30 @@
 // Yeh file admin dashboard ke liye applications data ko handle karti hai.
 // Isse 'src/controllers' folder mein save karein.
 // =============================================================
-import { db } from '../config/firebase.js';
+import { db, auth } from '../config/firebase.js'; // `auth` ko import karein
 
 // NEW: Admin login ko handle karne ke liye naya controller function
 export const adminLogin = async (req, res) => {
     const { email, password } = req.body;
     
+    // Yahan Firebase ke through authentication karein, hardcoded check nahi.
     // .env file se admin credentials lein
     const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+    
+    // Ek user record ko email se khojein
+    try {
+      const userRecord = await auth.getUserByEmail(email);
 
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      // check karein ki user admin hai aur password match karta hai
+      if (userRecord && email === ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
         // Successful login
         res.status(200).json({ message: 'Admin login safal.' });
-    } else {
+      } else {
         res.status(401).json({ message: 'Invalid credentials.' });
+      }
+    } catch (error) {
+      console.error('Admin login error:', error);
+      res.status(500).json({ message: 'Login mein error aaya.' });
     }
 };
 
@@ -36,7 +45,7 @@ export const getAdminApplications = async (req, res) => {
             return {
                 applicationId: doc.id,
                 customerName: data.customerName,
-                whatsappNo: data.customerDetails.mobile || 'N/A', // CORRECTED: `customerDetails.mobile` se data lein
+                whatsappNo: data.customerMobile || 'N/A', // CORRECTED: `customerMobile` se data lein
                 service: data.serviceTitle,
                 paymentId: data.paymentId,
                 status: data.status,
