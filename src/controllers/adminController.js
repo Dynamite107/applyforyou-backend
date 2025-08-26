@@ -3,7 +3,7 @@
 // Yeh file admin dashboard ke liye applications data ko handle karti hai.
 // Isse 'src/controllers' folder mein save karein.
 // =============================================================
-import { db, auth } from '../config/firebase.js'; // `auth` ko import karein
+import { db } from '../config/firebase.js';
 
 // NEW: Admin login ko handle karne ke liye naya controller function
 export const adminLogin = async (req, res) => {
@@ -11,20 +11,14 @@ export const adminLogin = async (req, res) => {
     
     // .env file se admin credentials lein
     const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-    
-    try {
-      // Firebase के साथ admin credentials को verify karein
-      const userRecord = await auth.getUserByEmail(email);
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
-      if (userRecord.uid && userRecord.email === ADMIN_EMAIL) {
+    // Seedhe .env se aaye credentials ko check karein
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
         // Successful login
         res.status(200).json({ message: 'Admin login safal.' });
-      } else {
+    } else {
         res.status(401).json({ message: 'Invalid credentials.' });
-      }
-    } catch (error) {
-      console.error('Admin login error:', error);
-      res.status(500).json({ message: 'Login mein error aaya.' });
     }
 };
 
