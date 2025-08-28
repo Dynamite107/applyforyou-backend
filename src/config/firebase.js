@@ -1,7 +1,6 @@
 // =============================================================
-// **NEW FILE**
 // File: src/config/firebase.js
-// Yeh ek nayi file hai. Isse 'src' ke andar 'config' naam ka folder banakar save karein.
+// Final and Corrected Version
 // =============================================================
 import admin from 'firebase-admin';
 import dotenv from 'dotenv';
@@ -9,13 +8,17 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 try {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  // Firebase Admin SDK apne aap Render ke Secret File se credentials le lega.
+  // Aapko JSON.parse karne ki zaroorat nahi hai.
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+    credential: admin.credential.applicationDefault(),
   });
+  
   console.log("Firebase Admin SDK safaltapoorvak initialize ho gaya.");
+
 } catch (error) {
   console.error("Firebase Admin SDK initialize karne mein error:", error.message);
+  console.error("Kripya check karein ki aapne Render par Secret File theek se banayi hai.");
   process.exit(1);
 }
 
