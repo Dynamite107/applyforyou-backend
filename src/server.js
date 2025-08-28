@@ -11,7 +11,7 @@ import './config/firebase.js';
 import authRoutes from './routes/authRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import userRoutes from './routes/userRoutes.js'; 
-import adminRoutes from './routes/adminRoutes.js'; // NEW: Admin routes ko import karein
+import adminRoutes from './routes/adminRoutes.js';
 
 // .env file se secret keys load karne ke liye configuration
 dotenv.config();
@@ -20,8 +20,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// === YAHAN BADLAV KIYA GAYA HAI ===
+// CORS ko configure karein
+const corsOptions = {
+  origin: 'https://applyforyou.netlify.app', // Sirf aapki Netlify website ko allow karein
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+// ===================================
+
 // Middlewares ka istemal karein
-app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -34,7 +42,7 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/user', userRoutes);
-app.use('/api/admin', adminRoutes); // NEW: Admin routes ko add karein
+app.use('/api/admin', adminRoutes);
 
 // Server ko start karein
 app.listen(PORT, () => {
