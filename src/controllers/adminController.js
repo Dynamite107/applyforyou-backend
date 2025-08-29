@@ -20,7 +20,6 @@ export const adminLogin = async (req, res) => {
 
     // Seedhe .env se aaye credentials ko check karein
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        // **YAHI SABSE ZAROORI BADLAV HAI**
         // Successful login par, token banakar bhejein
         res.status(200).json({
             message: 'Admin login safal.',
@@ -50,7 +49,9 @@ export const getAdminApplications = async (req, res) => {
                 service: data.service,
                 paymentId: data.paymentId,
                 status: data.status,
-                date: new Date(data.createdAt).toLocaleDateString('en-IN')
+                // **YAHI SABSE ZAROORI BADLAV HAI**
+                // createdAt ko pehle .toDate() se badlein
+                date: data.createdAt.toDate().toLocaleDateString('en-IN')
             };
         });
 
@@ -61,3 +62,4 @@ export const getAdminApplications = async (req, res) => {
         res.status(500).json({ message: 'Applications fetch karne mein error aaya.' });
     }
 };
+
