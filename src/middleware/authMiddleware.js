@@ -1,35 +1,31 @@
 // =============================================================
-// File: src/middleware/authMiddleware.js (Final and Corrected)
+// **CORRECT FILE FOR FIREBASE AUTHENTICATION**
+// File: src/middleware/authMiddleware.js
+// Yeh file Firebase token ko verify karti hai.
 // =============================================================
-import jwt from 'jsonwebtoken';
-import { auth } from '../config/firebase.js';
+import { admin } from '../config/firebase.js';
 
-// Yeh function ab admin token ko check karega
+// Is middleware ka naam 'protect' rakha gaya hai
 export const protect = async (req, res, next) => {
-  let token;
+  const authHeader = req.headers.authorization;
 
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    try {
-      // Header se token nikalein
-      token = req.headers.authorization.split(' ')[1];
-
-      // **YAHI SABSE ZAROORI BADLAV HAI**
-      // Token ko secret key se verify karein
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // Hum decoded data ko request me daal rahe hain, taaki aage istemal ho sake
-      // (Abhi iski zaroorat nahi hai, lekin future ke liye accha hai)
-      // req.admin = decoded; 
-
-      next(); // Sab theek hai, request ko aage badhne dein
-
-    } catch (error) {
-      console.error('Token verification failed', error);
-      res.status(401).json({ message: 'Not authorized, token failed' });
-    }
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Unauthorized: Koi token nahi mila.' });
   }
 
-  if (!token) {
-    res.status(401).json({ message: 'Not authorized, no token' });
+  const idToken = authHeader.split('Bearer ')[1];
+
+  try {
+    // Firebase Admin SDK se token ko verify karein (Sahi Tarika)
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    
+    // User ki jaankari (jaise UID) ko request object me jod dein
+    // taki agla function (userController) iska istemal kar sake
+    req.user = decodedToken; 
+    
+    next(); // Sab theek hai, ab agle function par jao
+  } catch (error) {
+    console.error('Token verify karne me error:', error);
+    return res.status(401).json({ message: 'Unauthorized: Token anuchit hai.' });
   }
 };
