@@ -16,7 +16,8 @@ export const getFormHistory = async (req, res) => {
     }
 
     // Firestore se applications ko fetch karein
-    const applicationsRef = db.collection('applications').where('userId', '==', userId);
+    // **Yahan badlav kiya gaya hai: Collection ka naam 'payments' hai**
+    const applicationsRef = db.collection('payments').where('userId', '==', userId);
     const snapshot = await applicationsRef.get();
 
     if (snapshot.empty) {
@@ -25,11 +26,16 @@ export const getFormHistory = async (req, res) => {
 
     const history = snapshot.docs.map(doc => {
       const data = doc.data();
+      // Ensure appliedAt exists and is a timestamp before converting
+      const appliedDate = data.appliedAt && data.appliedAt.toDate 
+        ? data.appliedAt.toDate().toISOString().split('T')[0] 
+        : 'N/A';
+
       return {
         applicationId: doc.id,
         serviceName: data.serviceTitle,
-        appliedDate: data.appliedAt.toDate().toISOString().split('T')[0],
-        deliveryDate: data.deliveryDate,
+        appliedDate: appliedDate,
+        deliveryDate: data.deliveryDate || 'N/A', // Provide a default value
         status: data.status,
       };
     });
@@ -40,3 +46,4 @@ export const getFormHistory = async (req, res) => {
     res.status(500).json({ message: 'Form history fetch karne mein error aaya.' });
   }
 };
+
