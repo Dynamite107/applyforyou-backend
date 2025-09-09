@@ -21,11 +21,26 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // === YAHAN BADLAV KIYA GAYA HAI ===
-// CORS ko configure karein
+// Un sabhi websites ki list banayein jinhe aap allow karna chahte hain
+const allowedOrigins = [
+  'https://applyforyou.netlify.app', // Purana Netlify domain
+  'https://www.applyforyou.in',      // Naya www domain
+  'https://applyforyou.in'           // Naya non-www domain
+];
+
+// CORS ko configure karein taki wo list me se kisi bhi origin ko allow kar sake
 const corsOptions = {
-  origin: 'https://applyforyou.netlify.app', // Sirf aapki Netlify website ko allow karein
+  origin: function (origin, callback) {
+    // Agar request list me se kisi origin se aayi hai (ya server se hi aayi hai)
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   optionsSuccessStatus: 200
 };
+
 app.use(cors(corsOptions));
 // ===================================
 
