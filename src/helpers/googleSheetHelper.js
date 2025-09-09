@@ -1,18 +1,17 @@
 // =============================================================
-// File: helpers/googleDriveHelper.js
+// File: src/helpers/googleSheetHelper.js
 // Google Sheet mein data save karne ke liye function.
 // =============================================================
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 
-// Google Sheet ID ko .env file se load karein
-const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 let doc;
 let isInitialized = false;
 
 // Google Sheet API ko initialize karein
 try {
-    if (!process.env.GOOGLE_API_CREDENTIALS || !SHEET_ID) {
+    // Check karein ki zaroori environment variables मौजूद hain ya nahi
+    if (!process.env.GOOGLE_API_CREDENTIALS || !process.env.GOOGLE_SHEET_ID) {
         throw new Error("Google credentials ya Sheet ID .env file mein nahi hai.");
     }
     
@@ -23,17 +22,16 @@ try {
     const serviceAccountAuth = new JWT({
         email: credentials.client_email,
         key: credentials.private_key,
-        scopes: [
-            'https://www.googleapis.com/auth/spreadsheets',
-            'https://www.googleapis.com/auth/drive.file',
-        ],
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
     // Spreadsheet object ko initialize karein
-    doc = new GoogleSpreadsheet(SHEET_ID, serviceAccountAuth);
+    doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID, serviceAccountAuth);
     isInitialized = true;
+    console.log("Google Sheet Helper safaltapoorvak initialize ho gaya.");
 
-} catch (error) {
+} catch (error)
+ {
     console.error("Google Sheet Helper ko initialize karne mein error:", error.message);
     isInitialized = false;
 }
@@ -42,32 +40,27 @@ try {
  * Nayi application/payment ki details Google Sheet mein save karein
  * @param {object} appData - Application ka poora data
  */
-export const saveApplicationDataToDrive = async (appData) => {
+export const saveApplicationDataToSheet = async (appData) => {
     if (!isInitialized) {
         console.error("Google Sheet service initialize nahi hui. Data save nahi ho sakta.");
-        return;
+        return; // Function ko yahin rok dein
     }
 
     try {
-        // Spreadsheet ki info load karein
         await doc.loadInfo(); 
-        
-        // Pehli sheet ko select karein (ya naam se bhi kar sakte hain)
-        const sheet = doc.sheetsByIndex[0]; 
+        const sheet = doc.sheetsByIndex[0]; // Pehli sheet ko select karein
 
-        // Nayi row add karein. Column headers aur appData ke keys match hone chahiye.
+        // Nayi row add karein (Aapke screenshot ke column headers se milte-julte naam)
         await sheet.addRow({
-            "Customer Name": appData.customerName,
-            "WhatsApp No": appData.customerMobile,
-            "Email": appData.customerEmail,
-            "Service": appData.serviceTitle,
-            "Payment Amount": appData.amountPaid,
-            "Status": appData.status,
-            "Payment ID": appData.paymentId,
-            "Token ID": appData.tokenId,
-            "Time Slot": appData.timeSlot,
-            "Applied Date": new Date(appData.appliedAt).toLocaleString('en-IN'),
-            "Delivery Date": appData.deliveryDate
+            'Customer Name': appData.customerName,
+            'WhatsApp No': appData.whatsappNo,
+            'Service': appData.service,
+            'Payment Amount': appData.amount,
+            'Status': appData.status,
+            'Payment ID': appData.paymentId,
+            'Token ID': appData.tokenId,
+            'Time Slot': appData.timeSlot,
+            'Applied Date': new Date(appData.createdAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
         });
 
         console.log(`Data safaltapoorvak Google Sheet mein save ho gaya.`);
@@ -77,7 +70,3 @@ export const saveApplicationDataToDrive = async (appData) => {
     }
 };
 
-// Purana function (ab istemal nahi hoga, lekin rakha hai)
-export const saveUserDataToDrive = (userData) => {
-  console.log("saveUserDataToDrive function ab istemal nahi ho raha hai.");
-};
