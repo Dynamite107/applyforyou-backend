@@ -10,6 +10,14 @@ const razorpay = new Razorpay({
 
 // === HELPER FUNCTIONS ===
 async function findNextAvailableSlot() {
+    // === Naya helper function 24-ghante ke format ko AM/PM me badalne ke liye ===
+    const formatTo12Hour = (hour) => {
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        let hour12 = hour % 12;
+        hour12 = hour12 ? hour12 : 12; // 0 baje (midnight) ko 12 AM aur 12 baje (noon) ko 12 PM dikhayein
+        return `${hour12}:00 ${ampm}`;
+    };
+
     const now = new Date();
     const indiaTimeOffset = 5.5 * 60 * 60 * 1000;
     let currentTime = new Date(now.getTime() + indiaTimeOffset);
@@ -25,9 +33,7 @@ async function findNextAvailableSlot() {
         let currentDay = dayOffset === 0 ? searchDate : nextDay;
         let startHour = bookingStartTime;
 
-        // ** यही ज़रूरी बदलाव है: स्लॉट हमेशा 1 घंटे बाद का मिलेगा **
         if (dayOffset === 0 && currentTime.getUTCHours() >= bookingStartTime) {
-            // हमेशा अगले घंटे से स्लॉट ढूंढना शुरू करें
             startHour = currentTime.getUTCHours() + 1;
         }
 
@@ -45,8 +51,14 @@ async function findNextAvailableSlot() {
                 const assignedTime = new Date(currentDay);
                 assignedTime.setUTCHours(hour);
                 const day = assignedTime.toLocaleDateString('en-IN');
+                
+                // ** YAHAN BADLAV KIYA GAYA HAI **
+                // Naye helper function ka istemal karke AM/PM jodein
+                const startTime12hr = formatTo12Hour(hour);
+                const endTime12hr = formatTo12Hour(hour + 1);
+
                 return {
-                    timeSlot: `${day}, ${hour}:00 - ${hour + 1}:00`,
+                    timeSlot: `${day}, ${startTime12hr} - ${endTime12hr}`,
                     slotAssignedAt: assignedTime
                 };
             }
@@ -111,12 +123,6 @@ export const verifyPayment = async (req, res) => {
             // पेमेंट सफल होने के बाद ही स्लॉट चेक और जेनरेट करें
             const tokenId = await generateNextTokenId();
             const slotDetails = await findNextAvailableSlot();
-
-            if (!slotDetails) {
-                // अगर कोई स्लॉट नहीं मिलता है, तो भी पेमेंट सफल है, बस स्लॉट बाद में असाइन होगा
-                // आप चाहें तो यहाँ एक अलग लॉजिक भी लिख सकते हैं
-                // अभी के लिए हम null वैल्यू के साथ आगे बढ़ेंगे
-            }
 
             const newApplication = {
                 userId,
