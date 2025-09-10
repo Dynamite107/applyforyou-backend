@@ -10,36 +10,55 @@ const razorpay = new Razorpay({
 
 // === HELPER FUNCTIONS ===
 async function findNextAvailableSlot() {
+    console.log("--- DEBUGGING findNextAvailableSlot ---");
     const now = new Date();
-    const indiaTimeOffset = 5.5 * 60 * 60 * 1000; // IST offset
+    const indiaTimeOffset = 5.5 * 60 * 60 * 1000;
     let currentTime = new Date(now.getTime() + indiaTimeOffset);
+
+    console.log("Current IST Time:", currentTime.toISOString());
+
     const bookingStartTime = 7;
     const bookingEndTime = 15;
-    const slotCapacity = 40;
+    const slotCapacity = 40; // Capacity is high for testing
+
     let searchDate = new Date(currentTime);
     searchDate.setUTCHours(0, 0, 0, 0);
+
     let nextDay = new Date(searchDate);
     nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+
     for (let dayOffset = 0; dayOffset < 2; dayOffset++) {
         let currentDay = dayOffset === 0 ? searchDate : nextDay;
+        console.log(`\nChecking for Day Offset: ${dayOffset} (Date: ${currentDay.toISOString()})`);
+        
         let startHour = bookingStartTime;
         if (dayOffset === 0 && currentTime.getUTCHours() >= bookingStartTime) {
             startHour = currentTime.getUTCHours();
         }
+        console.log(`Loop will run from hour ${startHour} to ${bookingEndTime}`);
+
         for (let hour = startHour; hour < bookingEndTime; hour++) {
+            console.log(`--> Checking hour: ${hour}`);
             const slotStart = new Date(currentDay);
             slotStart.setUTCHours(hour, 0, 0, 0);
             const slotEnd = new Date(currentDay);
             slotEnd.setUTCHours(hour, 59, 59, 999);
+
             const query = db.collection('payments')
                 .where('slotAssignedAt', '>=', slotStart)
                 .where('slotAssignedAt', '<=', slotEnd);
+            
             const snapshot = await query.get();
             const count = snapshot.size;
+            console.log(`-----> Found ${count} applications in this slot.`);
+
             if (count < slotCapacity) {
+                console.log("!!!!!! SLOT FOUND !!!!!!");
                 const assignedTime = new Date(currentDay);
                 assignedTime.setUTCHours(hour);
                 const day = assignedTime.toLocaleDateString('en-IN');
+                
+                console.log("--- END DEBUGGING (Success) ---");
                 return {
                     timeSlot: `${day}, ${hour}:00 - ${hour + 1}:00`,
                     slotAssignedAt: assignedTime
@@ -47,6 +66,9 @@ async function findNextAvailableSlot() {
             }
         }
     }
+
+    console.log("!!!!!! NO SLOTS FOUND in 2 days. Returning null. !!!!!!");
+    console.log("--- END DEBUGGING (Failed to find slot) ---");
     return null;
 }
 
@@ -162,4 +184,5 @@ export const verifyPayment = async (req, res) => {
         res.status(400).json({ success: false, message: 'Payment verification fail ho gayi. Invalid signature.' });
     }
 };
+
 
