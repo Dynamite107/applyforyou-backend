@@ -1,6 +1,4 @@
-// =============================================================
 // File: src/controllers/adminController.js (Updated)
-// =============================================================
 import { db } from '../config/firebase.js';
 import jwt from 'jsonwebtoken';
 
@@ -28,7 +26,6 @@ export const adminLogin = async (req, res) => {
 
 export const getAdminApplications = async (req, res) => {
     try {
-        // **YAHAN BADLAV KIYA GAYA HAI: Collection ka naam 'payments' kiya gaya hai**
         const applicationsRef = db.collection('payments').orderBy('createdAt', 'desc');
         const snapshot = await applicationsRef.get();
 
@@ -38,18 +35,15 @@ export const getAdminApplications = async (req, res) => {
 
         const applications = snapshot.docs.map(doc => {
             const data = doc.data();
-            const date = data.createdAt && data.createdAt.toDate 
-                ? data.createdAt.toDate().toLocaleDateString('en-IN') 
-                : 'N/A';
-
             return {
-                applicationId: doc.id,
+                id: doc.id, // Document ID bhejna zaroori hai
                 customerName: data.customerName || 'N/A',
                 whatsappNo: data.whatsappNo,
                 service: data.service,
+                amount: data.amount, // Amount ko joda gaya hai
                 paymentId: data.paymentId,
                 status: data.status,
-                date: date
+                createdAt: data.createdAt // Poora timestamp object bhejein
             };
         });
 
@@ -58,5 +52,26 @@ export const getAdminApplications = async (req, res) => {
     } catch (error) {
         console.error('Error fetching admin applications:', error);
         res.status(500).json({ message: 'Applications fetch karne mein error aaya.' });
+    }
+};
+
+// ** YEH NAYA FUNCTION JODA GAYA HAI **
+export const updateApplicationStatus = async (req, res) => {
+    try {
+        const { id } = req.params; // Application ki ID URL se milegi
+        const { status } = req.body; // Naya status body se milega
+
+        if (!status) {
+            return res.status(400).json({ message: 'Status zaroori hai.' });
+        }
+
+        const applicationRef = db.collection('payments').doc(id);
+        await applicationRef.update({ status: status });
+
+        res.status(200).json({ message: 'Status safaltapoorvak update ho gaya.' });
+
+    } catch (error) {
+        console.error('Error updating status:', error);
+        res.status(500).json({ message: 'Status update karne mein error aaya.' });
     }
 };
