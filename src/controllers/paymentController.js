@@ -10,55 +10,41 @@ const razorpay = new Razorpay({
 
 // === HELPER FUNCTIONS ===
 async function findNextAvailableSlot() {
-    console.log("--- DEBUGGING findNextAvailableSlot ---");
     const now = new Date();
     const indiaTimeOffset = 5.5 * 60 * 60 * 1000;
     let currentTime = new Date(now.getTime() + indiaTimeOffset);
-
-    console.log("Current IST Time:", currentTime.toISOString());
-
     const bookingStartTime = 7;
     const bookingEndTime = 15;
-    const slotCapacity = 40; // Capacity is high for testing
-
+    const slotCapacity = 4; // आप इसे अपनी ज़रूरत के अनुसार बदल सकते हैं
     let searchDate = new Date(currentTime);
     searchDate.setUTCHours(0, 0, 0, 0);
-
     let nextDay = new Date(searchDate);
     nextDay.setUTCDate(nextDay.getUTCDate() + 1);
 
     for (let dayOffset = 0; dayOffset < 2; dayOffset++) {
         let currentDay = dayOffset === 0 ? searchDate : nextDay;
-        console.log(`\nChecking for Day Offset: ${dayOffset} (Date: ${currentDay.toISOString()})`);
-        
         let startHour = bookingStartTime;
+
+        // ** यही ज़रूरी बदलाव है: स्लॉट हमेशा 1 घंटे बाद का मिलेगा **
         if (dayOffset === 0 && currentTime.getUTCHours() >= bookingStartTime) {
-            startHour = currentTime.getUTCHours();
+            // हमेशा अगले घंटे से स्लॉट ढूंढना शुरू करें
+            startHour = currentTime.getUTCHours() + 1;
         }
-        console.log(`Loop will run from hour ${startHour} to ${bookingEndTime}`);
 
         for (let hour = startHour; hour < bookingEndTime; hour++) {
-            console.log(`--> Checking hour: ${hour}`);
             const slotStart = new Date(currentDay);
             slotStart.setUTCHours(hour, 0, 0, 0);
             const slotEnd = new Date(currentDay);
             slotEnd.setUTCHours(hour, 59, 59, 999);
-
             const query = db.collection('payments')
                 .where('slotAssignedAt', '>=', slotStart)
                 .where('slotAssignedAt', '<=', slotEnd);
-            
             const snapshot = await query.get();
             const count = snapshot.size;
-            console.log(`-----> Found ${count} applications in this slot.`);
-
             if (count < slotCapacity) {
-                console.log("!!!!!! SLOT FOUND !!!!!!");
                 const assignedTime = new Date(currentDay);
                 assignedTime.setUTCHours(hour);
                 const day = assignedTime.toLocaleDateString('en-IN');
-                
-                console.log("--- END DEBUGGING (Success) ---");
                 return {
                     timeSlot: `${day}, ${hour}:00 - ${hour + 1}:00`,
                     slotAssignedAt: assignedTime
@@ -66,9 +52,6 @@ async function findNextAvailableSlot() {
             }
         }
     }
-
-    console.log("!!!!!! NO SLOTS FOUND in 2 days. Returning null. !!!!!!");
-    console.log("--- END DEBUGGING (Failed to find slot) ---");
     return null;
 }
 
@@ -90,36 +73,23 @@ async function generateNextTokenId() {
 }
 
 // === CONTROLLER FUNCTIONS (FINAL VERSION) ===
-
 export const createOrder = async (req, res) => {
-    const availableSlot = await findNextAvailableSlot();
-    if (!availableSlot) {
-        return res.status(429).json({ message: 'Time slot 24 hr ke liye full hai kripya aap kal aawedn kre' });
-    }
-
-    const { amount } = req.body;
-    if (!amount || amount <= 0) {
-        return res.status(400).json({ message: 'Amount sahi nahi hai.'});
-    }
-
-    // ध्यान दें: फ्रंटएंड से अमाउंट पहले से ही पैसे में आ रहा है (amount * 100)
-    // इसलिए यहाँ दोबारा गुणा नहीं करेंगे।
-    const options = {
-        amount: Math.round(amount),
-        currency: 'INR',
-        receipt: `receipt_order_${new Date().getTime()}`,
-    };
-
+    // createOrder में अब स्लॉट चेक करने की ज़रूरत नहीं, क्योंकि यह verifyPayment में होता है।
     try {
+        const { amount } = req.body;
+        if (!amount || amount <= 0) {
+            return res.status(400).json({ message: 'Amount sahi nahi hai.' });
+        }
+        const options = {
+            amount: Math.round(amount),
+            currency: 'INR',
+            receipt: `receipt_order_${new Date().getTime()}`,
+        };
         const order = await razorpay.orders.create(options);
-        
-        // ** YAHI ASLI FIX HAI **
-        // फ्रंटएंड को 'orderId' नाम से order.id और keyId भेजें
         res.status(200).json({
             orderId: order.id,
             keyId: process.env.RAZORPAY_KEY_ID
         });
-
     } catch (error) {
         console.error('Error creating Razorpay order:', error);
         res.status(500).json({ message: 'Order banane me asamarth.' });
@@ -128,7 +98,6 @@ export const createOrder = async (req, res) => {
 
 export const verifyPayment = async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, applicationDetails } = req.body;
-    
     const shasum = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET);
     shasum.update(`${razorpay_order_id}|${razorpay_payment_id}`);
     const digest = shasum.digest('hex');
@@ -139,42 +108,40 @@ export const verifyPayment = async (req, res) => {
             const userId = req.user.uid;
             const customerName = req.user.name || req.user.email;
             
+            // पेमेंट सफल होने के बाद ही स्लॉट चेक और जेनरेट करें
             const tokenId = await generateNextTokenId();
             const slotDetails = await findNextAvailableSlot();
 
             if (!slotDetails) {
-                return res.status(429).json({ success: false, message: 'Payment ke dauran slot full ho gaya. Kripya baad me koshish karein.' });
+                // अगर कोई स्लॉट नहीं मिलता है, तो भी पेमेंट सफल है, बस स्लॉट बाद में असाइन होगा
+                // आप चाहें तो यहाँ एक अलग लॉजिक भी लिख सकते हैं
+                // अभी के लिए हम null वैल्यू के साथ आगे बढ़ेंगे
             }
 
             const newApplication = {
                 userId,
+                customerName: customerName,
+                whatsappNo: whatsappNo,
                 service: service.title,
                 amount: Number(amount),
                 paymentId: razorpay_payment_id,
                 orderId: razorpay_order_id,
                 status: 'Processing',
                 createdAt: new Date(),
-                customerName: customerName,
-                whatsappNo: whatsappNo,
                 paymentGateway: 'Razorpay',
                 tokenId: tokenId,
-                timeSlot: slotDetails.timeSlot,
-                slotAssignedAt: slotDetails.slotAssignedAt
+                timeSlot: slotDetails ? slotDetails.timeSlot : null,
+                slotAssignedAt: slotDetails ? slotDetails.slotAssignedAt : null
             };
             
             await db.collection('payments').add(newApplication);
             await saveApplicationDataToSheet(newApplication);
-
-            // ** दूसरा बदलाव: सफलता वाले पेज के लिए सारी जानकारी भेजें **
+            
+            // **सही फॉर्मेट में सारी जानकारी फ्रंटएंड को भेजें**
             res.status(201).json({ 
                 success: true,
-                message: 'Payment safal! Aapka application submit ho gaya hai.', 
-                applicationDetails: {
-                    tokenId: newApplication.tokenId,
-                    timeSlot: newApplication.timeSlot,
-                    service: newApplication.service,
-                    createdAt: newApplication.createdAt
-                }
+                message: 'Payment safal!', 
+                applicationData: newApplication
             });
         } catch (error) {
             console.error('Error saving application:', error);
@@ -184,5 +151,3 @@ export const verifyPayment = async (req, res) => {
         res.status(400).json({ success: false, message: 'Payment verification fail ho gayi. Invalid signature.' });
     }
 };
-
-
