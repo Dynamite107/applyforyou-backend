@@ -15,7 +15,7 @@ async function findNextAvailableSlot() {
     let currentTime = new Date(now.getTime() + indiaTimeOffset);
     const bookingStartTime = 7;
     const bookingEndTime = 15;
-    const slotCapacity = 4;
+    const slotCapacity = 40;
     let searchDate = new Date(currentTime);
     searchDate.setUTCHours(0, 0, 0, 0);
     let nextDay = new Date(searchDate);
@@ -162,3 +162,4 @@ export const verifyPayment = async (req, res) => {
         res.status(400).json({ success: false, message: 'Payment verification fail ho gayi. Invalid signature.' });
     }
 };
+
