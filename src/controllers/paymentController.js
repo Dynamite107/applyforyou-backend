@@ -87,30 +87,43 @@ async function generateNextTokenId() {
 
 // === CONTROLLER FUNCTIONS ===
 
-// createOrder function (wapas joda gaya)
+// createOrder function (Debugging code ke saath)
 export const createOrder = async (req, res) => {
-    const availableSlot = await findNextAvailableSlot();
-    if (!availableSlot) {
-        return res.status(429).json({ message: 'Time slot 24 hr ke liye full hai kripya aap kal aawedn kre' });
-    }
-
-    const { amount } = req.body;
-    if (!amount || amount <= 0) {
-        return res.status(400).json({ message: 'Amount sahi nahi hai.'});
-    }
-
-    const options = {
-        amount: Math.round(amount * 100),
-        currency: 'INR',
-        receipt: `receipt_order_${new Date().getTime()}`,
-    };
-
+    console.log("--- DEBUGGING CREATE ORDER ---");
     try {
+        const { amount } = req.body;
+        console.log("Received amount from frontend:", amount);
+
+        if (!amount || amount <= 0) {
+            console.log("Error: Invalid amount received.");
+            return res.status(400).json({ message: 'Amount sahi nahi hai.' });
+        }
+
+        const options = {
+            amount: Math.round(amount), // Frontend se amount paise me hi aa raha hai
+            currency: 'INR',
+            receipt: `receipt_order_${new Date().getTime()}`,
+        };
+        console.log("Options sent to Razorpay:", options);
+
         const order = await razorpay.orders.create(options);
-        order.keyId = process.env.RAZORPAY_KEY_ID;
-        res.status(200).json(order);
+        
+        console.log("Order created successfully by Razorpay:", order);
+
+        // Frontend ko orderId aur keyId bhejein
+        const responsePayload = {
+            orderId: order.id,
+            keyId: process.env.RAZORPAY_KEY_ID
+        };
+
+        console.log("Sending response to frontend:", responsePayload);
+        console.log("--- END DEBUGGING CREATE ORDER ---");
+
+        res.status(200).json(responsePayload);
+
     } catch (error) {
         console.error('Error creating Razorpay order:', error);
+        console.log("--- END DEBUGGING CREATE ORDER (WITH ERROR) ---");
         res.status(500).json({ message: 'Order banane me asamarth.' });
     }
 };
