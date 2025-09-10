@@ -128,6 +128,8 @@ export const createOrder = async (req, res) => {
 
     try {
         const order = await razorpay.orders.create(options);
+        // Ab order object me Razorpay Key ID bhi shaamil karein
+        order.keyId = process.env.RAZORPAY_KEY_ID;
         res.status(200).json(order);
     } catch (error) {
         console.error('Error creating Razorpay order:', error);
@@ -153,7 +155,7 @@ export const verifyPayment = async (req, res) => {
             const slotDetails = await findNextAvailableSlot();
 
             if (!slotDetails) {
-                 return res.status(429).json({ success: false, message: 'Payment ke dauran slot full ho gaya. Kripya baad me koshish karein.' });
+                return res.status(429).json({ success: false, message: 'Payment ke dauran slot full ho gaya. Kripya baad me koshish karein.' });
             }
 
             const newApplication = {
@@ -188,4 +190,3 @@ export const verifyPayment = async (req, res) => {
         res.status(400).json({ success: false, message: 'Payment verification fail ho gayi. Invalid signature.' });
     }
 };
-
