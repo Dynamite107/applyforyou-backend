@@ -147,11 +147,28 @@ export const verifyPayment = async (req, res) => {
 // == PHONEPE INTEGRATION CODE START ==
 // =============================================================
 export const initiatePhonePePayment = async (req, res) => {
+    console.log("\n--- PHONEPE DEBUGGING START ---");
     try {
         const { amount, service, whatsappNo } = req.body;
         const userId = req.user.uid;
+
+        // Step 1: Check karein ki environment variables load ho rahe hain ya nahi
+        const merchantId = process.env.PHONEPE_MERCHANT_ID;
+        const saltKey = process.env.PHONEPE_SALT_KEY;
+        const saltIndex = process.env.PHONEPE_SALT_INDEX;
+
+        console.log("1. Environment Variables Check:");
+        console.log("   - Merchant ID Used:", merchantId ? 'Loaded' : '!!! NOT FOUND !!!');
+        console.log("   - Salt Key Used:", saltKey ? 'Loaded' : '!!! NOT FOUND !!!');
+        console.log("   - Salt Index Used:", saltIndex ? 'Loaded' : '!!! NOT FOUND !!!');
+
+        if (!merchantId || !saltKey || !saltIndex) {
+            throw new Error("PhonePe configuration server par nahi mili.");
+        }
+
         const merchantTransactionId = uuidv4();
         
+        // Step 2: Database me save hone wala data check karein
         const pendingPayment = {
             userId,
             merchantTransactionId,
@@ -162,10 +179,12 @@ export const initiatePhonePePayment = async (req, res) => {
             createdAt: new Date(),
             paymentGateway: 'PhonePe'
         };
+        console.log("2. Saving to 'pending_payments':", { merchantTransactionId, service: service.title });
         await db.collection('pending_payments').doc(merchantTransactionId).set(pendingPayment);
+        console.log("   - Successfully saved to Firestore.");
 
         const paymentData = {
-            merchantId: process.env.PHONEPE_MERCHANT_ID,
+            merchantId: merchantId,
             merchantTransactionId: merchantTransactionId,
             merchantUserId: userId,
             amount: amount * 100,
@@ -176,13 +195,15 @@ export const initiatePhonePePayment = async (req, res) => {
             paymentInstrument: { type: 'PAY_PAGE' }
         };
 
+        // Step 3: PhonePe ko bheja jane wala data check karein
         const base64Payload = Buffer.from(JSON.stringify(paymentData)).toString('base64');
-        const saltKey = process.env.PHONEPE_SALT_KEY;
-        const saltIndex = process.env.PHONEPE_SALT_INDEX;
         const stringToHash = base64Payload + '/pg/v1/pay' + saltKey;
         const sha256 = crypto.createHash('sha256').update(stringToHash).digest('hex');
         const checksum = sha256 + '###' + saltIndex;
+        
+        console.log("3. Calculated Checksum (first 10 chars):", checksum.substring(0, 10));
 
+        console.log("4. Calling PhonePe API...");
         const response = await axios.post(
             `${process.env.PHONEPE_HOST_URL}/pg/v1/pay`,
             { request: base64Payload },
@@ -190,10 +211,13 @@ export const initiatePhonePePayment = async (req, res) => {
         );
 
         const redirectUrl = response.data.data.instrumentResponse.redirectInfo.url;
+        console.log("5. Success! Redirect URL received from PhonePe.");
+        console.log("--- PHONEPE DEBUGGING END (SUCCESS) ---");
         res.status(200).json({ redirectUrl });
 
     } catch (error) {
         console.error('PhonePe payment initiation error:', error.response ? error.response.data : error.message);
+        console.log("--- PHONEPE DEBUGGING END (ERROR) ---");
         res.status(500).json({ message: 'PhonePe payment shuru karne mein samasya aayi.' });
     }
 };
