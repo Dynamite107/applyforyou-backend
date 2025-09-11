@@ -1,17 +1,25 @@
-// File: routes/paymentRoutes.js
-// Is code ko 'routes' folder ke andar 'paymentRoutes.js' naam se save karein.
+// File: routes/paymentRoutes.js (Updated)
 // =============================================================
 import express from 'express';
-import { createOrder, verifyPayment } from '../controllers/paymentController.js';
+import { 
+    createOrder, 
+    verifyPayment,
+    // ** Naye functions ko import karein **
+    initiatePhonePePayment, 
+    verifyPhonePePayment 
+} from '../controllers/paymentController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router_payment = express.Router();
 
-// /api/payment/create-order par request aane par createOrder function chalega.
-// 'protect' middleware yeh sunishchit karta hai ki user pehle se login ho.
+// --- RAZORPAY ROUTES ---
 router_payment.post('/create-razorpay-order', protect, createOrder);
-
-// /api/payment/verify par request aane par verifyPayment function chalega.
 router_payment.post('/verify-razorpay', protect, verifyPayment);
+
+
+// --- PHONEPE ROUTES (Yeh do nayi lines jodi gayi hain) ---
+router_payment.post('/initiate-phonepe', protect, initiatePhonePePayment);
+router_payment.get('/verify-phonepe-payment/:transactionId', protect, verifyPhonePePayment);
+
 
 export default router_payment;
